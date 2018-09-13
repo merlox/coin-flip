@@ -56,7 +56,7 @@ contract CoinFlip {
     function revealResult(bool coinResult, uint256 nonce) public {
         require(playerMadeChoice);
         require(keccak256(abi.encodePacked(coinResult, nonce)) == flippersCommitment);
-        require(expirationTime <= now);
+        require(expirationTime > now);
 
         // To be able to start a new game
         playerMadeChoice = false;
@@ -74,12 +74,16 @@ contract CoinFlip {
     function expireGame() public onlyPlayer {
         require(now > expirationTime);
         player.transfer(address(this).balance);
+
+        playerMadeChoice = false;
+        resultRevealed = true;
+        expirationTime = 2**256-1;
     }
 
     /// @notice To start a new coin flip game by commiting to a result as the flipper and paying the required bet
     /// @param _player The same or a new address for the player
     /// @param _flippersCommitment The signed message of the flipper that includes the result of the coin flip. Encrypted along with a random 32 character number
-    function startNewGame(address _player, bytes32 _flippersCommitment) public payable onlyFlipper {
+    function startNewGame(bytes32 _flippersCommitment, address _player) public payable onlyFlipper {
         require(!playerMadeChoice);
         require(msg.value == bet);
         require(resultRevealed);
