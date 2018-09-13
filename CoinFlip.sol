@@ -1,4 +1,4 @@
-pragma solidity 0.4.24;
+pragma solidity 0.4.25;
 
 // In this game of 2 players, the first one decides the result of the coin flip as if he's flipped a coin in real life. Then, the second player commits to a choice and any of them player can reveal the final result to send the reward to the winner.
 
@@ -11,13 +11,14 @@ pragma solidity 0.4.24;
 // The idea is that the flipper and the player run several games making bets each time
 
 contract CoinFlip {
-    uint256 public bet = 2 ether;
+    uint256 public bet = 0.1 ether;
     address public flipper = msg.sender;
     bytes32 public flippersCommitment;
     address public player;
     bool public playersChoice;
     bool public playerMadeChoice = false;
     bool public resultRevealed = false;
+    uint256 public expirationTime = 2**256-1; // Almost infinite
 
     modifier onlyFlipper() {
         require(msg.sender == flipper);
@@ -46,6 +47,7 @@ contract CoinFlip {
         require(!playerMadeChoice);
         playersChoice = _playersChoice;
         playerMadeChoice = true;
+        expirationTime = now + 10 hours;
     }
 
     /// @notice Reveals the choices from the flipper and player to determine the winner. If the player made the right call, he gets the ether. If he fails, the flipper gets the ether bet. Any one of the participants can execute this function because it requires that the player has made his choice. The random 32 number nonce is required to reveal the result in order to verify that the commitment of the flipper is valid
@@ -53,17 +55,25 @@ contract CoinFlip {
     /// @param nonce A 32 characters random number generated off-chain. Required to verify that the flipper's commitment is valid
     function revealResult(bool coinResult, uint256 nonce) public {
         require(playerMadeChoice);
-        require(keccak256(coinResult, nonce) == flippersCommitment);
+        require(keccak256(abi.encodePacked(coinResult, nonce)) == flippersCommitment);
+        require(expirationTime <= now);
 
         // To be able to start a new game
         playerMadeChoice = false;
         resultRevealed = true;
+        expirationTime = 2**256-1;
 
         if(coinResult == playersChoice) {
             player.transfer(address(this).balance);
         } else {
             flipper.transfer(address(this).balance);
         }
+    }
+
+    /// @notice To end the game if the flipper refuses to reveal the result because of a loss
+    function expireGame() public onlyPlayer {
+        require(now > expirationTime);
+        player.transfer(address(this).balance);
     }
 
     /// @notice To start a new coin flip game by commiting to a result as the flipper and paying the required bet
