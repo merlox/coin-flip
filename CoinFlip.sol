@@ -13,12 +13,14 @@ pragma solidity 0.4.25;
 contract CoinFlip {
     uint256 public bet = 0.1 ether;
     address public flipper = msg.sender;
-    bytes32 public flippersCommitment;
     address public player;
+
     bool public playersChoice;
     bool public playerMadeChoice = false;
     bool public resultRevealed = false;
     uint256 public expirationTime = 2**256-1; // Almost infinite
+    uint256 public playerEscrow;
+    uint256 public flipperEscrow;
 
     modifier onlyFlipper() {
         require(msg.sender == flipper);
@@ -30,14 +32,17 @@ contract CoinFlip {
         _;
     }
 
-    /// @notice The constructor used to set up a new coin flip game. The flipper pays the bet to play
-    /// @param _flippersCommitment The result of flipping a coin, encrypted with a random nonce and the boolean result
+    /// @notice The constructor used to set up a new coin flip game. The flipper pays his escrow
     /// @param _player The address of the player that will participate in the game
-    constructor(bytes32 _flippersCommitment, address _player) public payable {
+    constructor(address _player) public payable {
         require(_player != address(0));
-        require(msg.value == bet);
-        flippersCommitment = _flippersCommitment;
+        flipperEscrow = msg.value;
         player = _player;
+    }
+
+    /// @notice To set up the escrow of the second player. Execute it only once per game at the beginning
+    function setEscrowPlayer() public payable onlyPlayer {
+        playerEscrow = msg.value;
     }
 
     /// @notice The function that the player executes when he wants to make his choice by paying the bet
