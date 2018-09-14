@@ -8,7 +8,7 @@ This game uses commitment schemes and state channels to upload the result of the
 - Install `truffle` globally with `npm i -g truffle` to execute the tests
 - Install `http-server` globally with `npm i -g http-server` to create a static server and to make the application work with metamask
 
-Execute `npm run web` to start the static server. Then go to `localhost:8080` to start using the application with the developer tools of the browser and the javascript console by openning them with `F12` on windows.
+Execute `npm run web` to start the static server. Then go to `localhost:8080` to start using the application with the developer tools of the browser and the javascript console by opening them with `F12` on windows or right click > inspect element.
 
 ## How to play
 **In the Smart Contract:**
