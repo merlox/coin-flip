@@ -1,6 +1,6 @@
 // Set your escrow balance that you used in the smart contract
-const globalPlayer1Escrow = web3.toWei(5, 'ether')
-const globalPlayer2Escrow = web3.toWei(5, 'ether')
+const globalPlayer1Escrow = web3.toWei(1, 'ether')
+const globalPlayer2Escrow = web3.toWei(1, 'ether')
 
 // How much money you have won or lost
 let globalPlayer1Balance = globalPlayer1Escrow
@@ -21,7 +21,7 @@ async function playerOneFlip(coinFlipResult, bet) {
 	const nonce = Math.floor(Math.random() * 1e16)
 
 	// We need to hash all this information to later verify in the Smart Contract that it's all valid. The 4th argument is the final balance after playing some games
-	const hash = generateHash(coinFlipResult, globalPlayer1Escrow, bet, globalPlayer1Balance, nonce, sequence)
+	const hash = generateHash(coinFlipResult, globalPlayer1Escrow, bet, globalPlayer1Balance.toString(), nonce, sequence)
 	const signedMessage = await signMessage(hash)
 	player1 = {
 		signedMessage,
@@ -34,13 +34,8 @@ async function playerOneFlip(coinFlipResult, bet) {
 		address: web3.eth.defaultAccount
 	}
 
-	console.log('5')
-
 	games.push(new Array(player1))
-	console.log('6')
-
 	console.log('Player 1 data:', player1)
-	console.log('7')
 
 	sequence++
 }
@@ -52,7 +47,7 @@ async function playerTwoFlip(coinCall, bet) {
 	const nonce = Math.floor(Math.random() * 1e16)
 
 	// We need to hash all this information to later verify in the Smart Contract that it's all valid. The 4th argument is the final balance after playing some games
-	const hash = generateHash(coinCall, globalPlayer2Escrow, bet, globalPlayer2Balance, nonce, sequence)
+	const hash = generateHash(coinCall, globalPlayer2Escrow, bet, globalPlayer2Balance.toString(), nonce, sequence)
 	const signedMessage = await signMessage(hash)
 
 	player2 = {
@@ -99,12 +94,16 @@ function revealResult(player2SignedMessage, player2Address, player2Call, player2
 
 	// Update the balances
 	if(player1.coinFlipResult == player2Call) {
-		globalPlayer1Balance -= player2Bet
-		globalPlayer2Balance += player2Bet
+		globalPlayer1Balance = parseInt(globalPlayer1Balance)
+		globalPlayer2Balance = parseInt(globalPlayer2Balance)
+		globalPlayer1Balance -= parseInt(player2Bet)
+		globalPlayer2Balance += parseInt(player2Bet)
 		console.log('Player 2 wins! The globalPlayer1Balance and globalPlayer2Balance have been updated')
 	} else {
-		globalPlayer1Balance += player1.bet
-		globalPlayer2Balance -= player1.bet
+		globalPlayer1Balance = parseInt(globalPlayer1Balance)
+		globalPlayer2Balance = parseInt(globalPlayer2Balance)
+		globalPlayer1Balance += parseInt(player1.bet)
+		globalPlayer2Balance -= parseInt(player1.bet)
 		console.log('Player 1 wins! The globalPlayer1Balance and globalPlayer2Balance have been updated')
 	}
 }

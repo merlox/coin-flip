@@ -11,91 +11,89 @@ pragma solidity 0.4.25;
 // The idea is that the flipper and the player run several games making bets each time
 
 contract CoinFlip {
-    uint256 public bet = 0.1 ether;
-    address public flipper = msg.sender;
-    address public player;
-
-    bool public playersChoice;
-    bool public playerMadeChoice = false;
-    bool public resultRevealed = false;
+    address public playerOne = msg.sender;
+    address public playerTwo;
     uint256 public expirationTime = 2**256-1; // Almost infinite
-    uint256 public playerEscrow;
-    uint256 public flipperEscrow;
+    uint256 public player1Escrow;
+    uint256 public player2Escrow;
 
-    modifier onlyFlipper() {
-        require(msg.sender == flipper);
-        _;
+    // State variables to finish the game
+    uint256 public player1Balance;
+    uint256 public player2Balance;
+    bool public isPlayer1BalanceSetUp;
+    bool public isPlayer2BalanceSetUp;
+    uint256 public player1FinalBalance;
+    uint256 public player2FinalBalance;
+    uint256 public player1Bet;
+    uint256 public player2Bet;
+    bool public player1Call;
+    bool public player2Call;
+
+    /// @notice The constructor used to set up a new coin flip game. The flipper pays the bet to play
+    constructor() public payable {
+        player1Escrow = msg.value;
     }
 
-    modifier onlyPlayer() {
-        require(msg.sender == player);
-        _;
+    /// @notice To set up the escrow of the second player. Can only be executed once
+    function setupPlayerTwo() public payable {
+        require(playerTwo == address(0));
+        player2Escrow = msg.value;
+        playerTwo = msg.sender;
     }
 
-    /// @notice The constructor used to set up a new coin flip game. The flipper pays his escrow
-    /// @param _player The address of the player that will participate in the game
-    constructor(address _player) public payable {
-        require(_player != address(0));
-        flipperEscrow = msg.value;
-        player = _player;
-    }
+    /// @notice To verify and save the player balance to distribute it later when the game is completed. The msg.sender is important to decide which balance is being updated
+    function verifyPlayerBalance(bytes playerMessage, bool playerCall, uint256 playerBet, uint256 playerBalance, uint256 playerNonce, uint256 playerSequence) public {
+        require(playerMessage.length == 65);
+        uint256 escrowToUse = player1Escrow;
 
-    /// @notice To set up the escrow of the second player. Execute it only once per game at the beginning
-    function setEscrowPlayer() public payable onlyPlayer {
-        playerEscrow = msg.value;
-    }
+        if(msg.sender == playerTwo) escrowToUse = player2Escrow;
 
-    /// @notice The function that the player executes when he wants to make his choice by paying the bet
-    /// @param _playersChoice The boolean choice where true = heads and false = tails
-    function makeChoice(bool _playersChoice) public payable onlyPlayer {
-        require(msg.value == bet);
-        require(!playerMadeChoice);
-        playersChoice = _playersChoice;
-        playerMadeChoice = true;
-        expirationTime = now + 10 hours;
-    }
+        // Recreate the signed message for the first player to verify that the parameters are correct
+        bytes32 message = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(playerCall, escrowToUse, playerBet, playerBalance, playerNonce, playerSequence))));
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
 
-    /// @notice Reveals the choices from the flipper and player to determine the winner. If the player made the right call, he gets the ether. If he fails, the flipper gets the ether bet. Any one of the participants can execute this function because it requires that the player has made his choice. The random 32 number nonce is required to reveal the result in order to verify that the commitment of the flipper is valid
-    /// @param coinResult The choice made by the flipper, the result of flipping the coin
-    /// @param nonce A 32 characters random number generated off-chain. Required to verify that the flipper's commitment is valid
-    function revealResult(bool coinResult, uint256 nonce) public {
-        require(playerMadeChoice);
-        require(keccak256(abi.encodePacked(coinResult, nonce)) == flippersCommitment);
-        require(expirationTime > now);
+        assembly {
+            r := mload(add(playerMessage, 32))
+            s := mload(add(playerMessage, 64))
+            v := byte(0, mload(add(playerMessage, 96)))
+        }
 
-        // To be able to start a new game
-        playerMadeChoice = false;
-        resultRevealed = true;
-        expirationTime = 2**256-1;
+        address originalSigner = ecrecover(message, v, r, s);
+        require(originalSigner == msg.sender);
 
-        if(coinResult == playersChoice) {
-            player.transfer(address(this).balance);
+        if(msg.sender == playerOne) {
+            player1Balance = playerBalance;
+            isPlayer1BalanceSetUp = true;
+            player1Bet = playerBet;
+            player1Call = playerCall;
         } else {
-            flipper.transfer(address(this).balance);
+            player2Balance = playerBalance;
+            isPlayer2BalanceSetUp = true;
+            player2Bet = playerBet;
+            player2Call = playerCall;
+        }
+
+        if(isPlayer1BalanceSetUp && isPlayer2BalanceSetUp) {
+            if(player1Call == player2Call) {
+                player2FinalBalance = player2Balance + player2Bet;
+                player1FinalBalance = player1Balance - player2Bet;
+            } else {
+                player1FinalBalance = player1Balance + player1Bet;
+                player2FinalBalance = player2Balance - player1Bet;
+            }
         }
     }
 
-    /// @notice To end the game if the flipper refuses to reveal the result because of a loss
-    function expireGame() public onlyPlayer {
-        require(now > expirationTime);
-        player.transfer(address(this).balance);
-
-        playerMadeChoice = false;
-        resultRevealed = true;
-        expirationTime = 2**256-1;
+    /// @notice To finish the game and send the winner funds
+    function finish() public {
+        require(isPlayer1BalanceSetUp && isPlayer2BalanceSetUp);
+        playerOne.transfer(player1FinalBalance);
+        playerTwo.transfer(player2FinalBalance);
     }
 
-    /// @notice To start a new coin flip game by commiting to a result as the flipper and paying the required bet
-    /// @param _player The same or a new address for the player
-    /// @param _flippersCommitment The signed message of the flipper that includes the result of the coin flip. Encrypted along with a random 32 character number
-    function startNewGame(bytes32 _flippersCommitment, address _player) public payable onlyFlipper {
-        require(!playerMadeChoice);
-        require(msg.value == bet);
-        require(resultRevealed);
-        require(_player != address(0));
-
-        resultRevealed = false;
-        flippersCommitment = _flippersCommitment;
-        player = _player;
+    function extractEther() public {
+        msg.sender.transfer(address(this).balance);
     }
 }
