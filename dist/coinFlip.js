@@ -1,6 +1,6 @@
 // Set your escrow balance that you used in the smart contract
-const globalPlayer1Escrow = web3.toWei(1, 'ether')
-const globalPlayer2Escrow = web3.toWei(1, 'ether')
+const globalPlayer1Escrow = web3.toWei(2, 'ether')
+const globalPlayer2Escrow = web3.toWei(2, 'ether')
 
 // How much money you have won or lost
 let globalPlayer1Balance = globalPlayer1Escrow
