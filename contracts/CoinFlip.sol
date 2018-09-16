@@ -1,4 +1,4 @@
-pragma solidity 0.4.24;
+pragma solidity 0.4.25;
 
 // In this game of 2 players, the first one decides the result of the coin flip as if he's flipped a coin in real life. Then, the second player commits to a choice and any of them player can reveal the final result to send the reward to the winner after several games by verifying each player's balance with verifyPlayerBalance() and executing finish().
 contract CoinFlip {
