@@ -1,6 +1,3 @@
-import * as ethereumjs from './abi.js'
-import * as ethereumjsUtil from './util.js'
-
 // Set your escrow balance that you used in the smart contract
 const globalPlayer1Escrow = web3.toWei(1, 'ether')
 const globalPlayer2Escrow = web3.toWei(1, 'ether')
@@ -37,7 +34,11 @@ async function playerOneFlip(coinFlipResult, bet) {
 		address: web3.eth.defaultAccount
 	}
 
-	games.push(new Array(player1))
+	if(games[games.length] === undefined) {
+		games.push(new Array(player1))
+	} else {
+		games[games.length - 1].push(player1)
+	}
 	console.log('Player 1 data:', player1)
 
 	sequence++
@@ -64,8 +65,11 @@ async function playerTwoFlip(coinCall, bet) {
 		address: web3.eth.defaultAccount
 	}
 
-
-	games[games.length - 1].push(player2)
+	if(games[games.length - 1] === undefined) {
+		games.push(new Array(player2))
+	} else {
+		games[games.length - 1].push(player2)
+	}
 	console.log('Player 2 data:', player2)
 
 	sequence++
@@ -144,5 +148,3 @@ function signMessage(hash) {
 		})
 	})
 }
-
-export {playerOneFlip, playerTwoFlip, revealResult, verifyMessage, generateHash, signMessage}

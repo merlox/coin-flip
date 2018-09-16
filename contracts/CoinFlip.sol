@@ -85,9 +85,4 @@ contract CoinFlip {
         playerOne.transfer(player1FinalBalance);
         playerTwo.transfer(player2FinalBalance);
     }
-
-    /// @notice A testing function to not lose ether everytime I re-deploy the contract
-    function extractEther() public {
-        msg.sender.transfer(address(this).balance);
-    }
 }
